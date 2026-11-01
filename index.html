@@ -1,0 +1,1076 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Badge JSConf en vivo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chango&family=Righteous&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+  :root { --bg:#0b1d33; --panel:#12294a; --panel2:#0d2140; --line:#2c4a75; --fg:#eaf2ff; --muted:#9fb3d1; --accent:#ffb400; --ok:#3ddc84; --err:#ff5c5c; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.4 system-ui, sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 20px; margin: 0 0 12px; }
+  h1 span { color: var(--accent); }
+  h2 { font-size: 16px; margin: 0 0 10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  h2 small { color:var(--muted); font-weight:400; font-size:13px; }
+  .bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+  button, select { background:var(--accent); color:#1a1200; border:0; border-radius:8px; padding:8px 14px; font:inherit; font-weight:600; cursor:pointer; }
+  button.ghost, select { background:transparent; color:var(--fg); border:1px solid var(--line); }
+  select { padding:6px 10px; font-weight:400; }
+  select option { background:var(--panel); }
+  button.small { padding:4px 10px; font-size:13px; }
+  button:disabled { opacity:.4; cursor:default; }
+  #status { color:var(--muted); }
+  #status.ok { color:var(--ok); } #status.err { color:var(--err); }
+  .screen { background:#000; border-radius:12px; padding:10px; border:2px solid var(--line); }
+  #screen { width:100%; image-rendering:pixelated; display:block; aspect-ratio: 428 / 142; }
+  .pad { display:flex; gap:8px; justify-content:center; margin:10px 0 18px; flex-wrap:wrap; }
+  .pad button { min-width:90px; }
+  .grid { display:grid; grid-template-columns: 3fr 2fr; gap:16px; margin-bottom:16px; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+  .panel { background:var(--panel); border-radius:12px; padding:12px; min-width:0; }
+  .spacer { flex:1; }
+
+  /* Red en vivo */
+  .tablewrap { max-height: 360px; overflow:auto; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th { text-align:left; color:var(--muted); font-weight:500; font-size:12px; position:sticky; top:0; background:var(--panel); padding:4px 6px; }
+  td { padding:5px 6px; border-top:1px solid #1d3a63; white-space:nowrap; }
+  td.name { white-space:normal; }
+  td.name b { display:block; }
+  td.name span { color:var(--muted); font-size:12px; }
+  tr.near td { background:rgba(61,220,132,.08); }
+  tr.stale td { opacity:.5; }
+  .sig { display:inline-block; width:70px; height:8px; background:#0a1a33; border-radius:4px; overflow:hidden; vertical-align:middle; margin-right:6px; }
+  .sig i { display:block; height:100%; }
+  .pill { font-size:11px; padding:1px 6px; border-radius:10px; background:#1d3a63; color:var(--muted); }
+  .pill.direct { background:#1f4d33; color:var(--ok); }
+  .empty { color:var(--muted); text-align:center; padding:20px; }
+
+  /* Mensajes */
+  #msgs { height: 300px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+  .msg { background:var(--panel2); border-radius:8px; padding:6px 10px; }
+  .msg.me { background:#2a3d12; align-self:flex-end; }
+  .msg .who { color:var(--accent); font-weight:600; font-size:13px; }
+  .msg .meta { color:var(--muted); font-size:12px; }
+  form { display:flex; gap:8px; }
+  input { flex:1; min-width:0; background:var(--panel2); color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:8px; font:inherit; }
+
+  /* Mapa de calor */
+  .heatwrap { position:relative; overflow-x:auto; }
+  #heat { display:block; }
+  #tip { position:absolute; pointer-events:none; background:#000c; border:1px solid var(--line); border-radius:6px; padding:4px 8px; font-size:12px; display:none; white-space:nowrap; }
+  .legend { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:12px; margin-top:8px; flex-wrap:wrap; }
+  .legend .scale { width:160px; height:10px; border-radius:5px; }
+  .rank { display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:8px; margin-top:12px; }
+  .rank div { background:var(--panel2); border-radius:8px; padding:8px 10px; }
+  .rank b { color:var(--accent); margin-right:6px; }
+  .rank span { color:var(--muted); font-size:12px; display:block; }
+  .hint { color:var(--muted); font-size:13px; margin-top:12px; }
+
+  /* Mi página (Canvas) */
+  .designer { display:grid; grid-template-columns: 1fr 1fr; gap:16px; align-items:start; }
+  @media (max-width: 860px) { .designer { grid-template-columns: 1fr; } }
+  #design { width:100%; image-rendering:pixelated; display:block; aspect-ratio: 428 / 142; border-radius:8px; border:2px solid var(--line); background:#000; }
+  .fields { display:grid; grid-template-columns: auto 1fr; gap:8px 10px; align-items:center; }
+  .fields label { color:var(--muted); font-size:13px; }
+  .fields select, .fields input { width:100%; }
+  .progress { height:8px; background:var(--panel2); border-radius:4px; overflow:hidden; margin-top:10px; }
+  .progress i { display:block; height:100%; width:0; background:var(--accent); transition: width .1s; }
+  #upStatus { color:var(--muted); font-size:13px; margin-top:6px; min-height:1.4em; }
+
+  /* CTF */
+  .ctf { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+  @media (max-width: 860px) { .ctf { grid-template-columns: 1fr; } }
+  #board { width:100%; image-rendering:pixelated; display:block; aspect-ratio: 428 / 142; border-radius:8px; border:2px solid var(--line); background:#000; }
+  #ctfLog { height:220px; overflow-y:auto; font:12px/1.5 ui-monospace, Consolas, monospace; background:var(--panel2); border-radius:8px; padding:8px; }
+  #ctfLog .ok { color:var(--ok); } #ctfLog .bad { color:var(--err); } #ctfLog .in { color:var(--muted); }
+  .check { display:flex; align-items:center; gap:6px; color:var(--muted); font-size:13px; }
+  .solved { color:var(--ok); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Badge <span>JSConf MX 2026</span> en vivo</h1>
+  <div class="bar">
+    <button id="connect">Conectar badge</button>
+    <button id="disconnect" class="ghost" disabled>Desconectar</button>
+    <button id="snap" class="ghost" disabled>Guardar captura</button>
+    <span id="status">Sin conectar</span>
+  </div>
+
+  <div class="screen"><canvas id="screen" width="428" height="142"></canvas></div>
+
+  <div class="pad">
+    <button class="ghost key" data-code="29" disabled>▲ Up</button>
+    <button class="ghost key" data-code="28" disabled>▼ Down</button>
+    <button class="ghost key" data-code="10" disabled>Select</button>
+    <button class="ghost key" data-code="24" disabled>Back</button>
+  </div>
+
+  <section class="panel" style="margin-bottom:16px">
+    <h2>Mi página en el badge <small>se ve en la página "Canvas" del badge</small></h2>
+    <div class="designer">
+      <div>
+        <canvas id="design" width="428" height="142"></canvas>
+        <div class="bar" style="margin-top:10px">
+          <button id="upload" disabled>Subir al badge</button>
+          <button id="saveDesign" class="ghost small">Descargar PNG</button>
+        </div>
+        <div class="progress"><i id="upBar"></i></div>
+        <div id="upStatus">Conecta el badge para subir tu diseño.</div>
+      </div>
+      <div class="fields">
+        <label for="dHandle">Usuario</label><input id="dHandle" value="@cibergabs" maxlength="24">
+        <label for="dName">Nombre</label><input id="dName" value="Gabriel" maxlength="32">
+        <label for="dLine">Línea extra</label><input id="dLine" value="JSConf MX 2026 · Guadalajara" maxlength="40">
+        <label for="dNet">Red social</label>
+        <select id="dNet">
+          <option value="">Ninguna</option>
+          <option value="instagram">Instagram</option>
+          <option value="linkedin">LinkedIn</option>
+          <option value="facebook">Facebook</option>
+        </select>
+        <label for="dAxo">Ajolote</label>
+        <select id="dAxo">
+          <option value="vibes" selected>Vibras</option><option value="agent">Agente</option><option value="bubbles">Burbujas</option>
+          <option value="corn">Elote</option><option value="fan">Abanico</option><option value="finance">Finanzas</option>
+          <option value="happy">Feliz</option><option value="poncho">Poncho</option><option value="referee">Árbitro</option>
+          <option value="scout">Scout</option><option value="venue">Sede</option><option value="">Sin ajolote</option>
+        </select>
+        <label for="dTheme">Colores</label>
+        <select id="dTheme">
+          <option value="jsconf">JSConf (azul y dorado)</option>
+          <option value="rosa">Ajolote (rosa)</option>
+          <option value="neon">Noche neón</option>
+        </select>
+        <label for="dQr">QR (enlace)</label><input id="dQr" placeholder="https://… (vacío = sin QR)" maxlength="120">
+        <label for="dImg">Imagen propia</label><input id="dImg" type="file" accept="image/*">
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-bottom:16px">
+    <h2>🏴 CTF por radio <small id="ctfInfo"></small><span class="spacer"></span>
+      <label class="check"><input type="checkbox" id="ctfOn"> Bot activo</label>
+    </h2>
+    <div class="ctf">
+      <div>
+        <canvas id="board" width="428" height="142"></canvas>
+        <div class="bar" style="margin-top:10px">
+          <button id="boardUp" class="ghost small" disabled>Subir marcador al badge</button>
+          <label class="check"><input type="checkbox" id="boardAuto"> Actualizarlo solo</label>
+          <button id="ctfAnnounce" class="ghost small" disabled>Anunciar en el canal público</button>
+          <button id="ctfReset" class="ghost small">Reiniciar CTF</button>
+        </div>
+        <table style="margin-top:10px">
+          <thead><tr><th>#</th><th>Jugador</th><th>Retos</th><th>Puntos</th></tr></thead>
+          <tbody id="ctfTable"><tr><td colspan="4" class="empty">Nadie ha resuelto nada todavía</td></tr></tbody>
+        </table>
+      </div>
+      <div>
+        <div id="ctfLog"></div>
+        <h2 style="margin-top:14px">🏆 Gafete de campeón</h2>
+        <canvas id="champ" width="428" height="142" style="width:100%;aspect-ratio:428/142;image-rendering:pixelated;border-radius:8px;border:2px solid var(--line);display:block"></canvas>
+        <div class="bar" style="margin-top:10px">
+          <input id="champName" placeholder="Nombre del ganador" maxlength="32" style="flex:1">
+          <button id="champUp" class="small" disabled>Subir al gafete conectado</button>
+        </div>
+        <p class="hint">Para entregar el premio: desconecta tu badge, conecta el del ganador por USB, haz clic en "Conectar badge" y luego en "Subir al gafete conectado". Al terminar, vuelve a conectar el tuyo: mientras tanto, el bot está pausado.</p>
+        <p class="hint">Los jugadores mandan <code>!ctf</code> por mensaje directo a tu badge. El bot responde solo por DM para no saturar el canal público. La llave del reto 2 (<b>LORA</b>) sale en el marcador de tu badge: tienen que encontrarte para verla.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="panel">
+      <h2>Red en vivo <small id="netCount"></small><span class="spacer"></span>
+        <select id="sort">
+          <option value="seen">Más reciente</option>
+          <option value="rssi">Señal más fuerte</option>
+          <option value="name">Nombre</option>
+        </select>
+      </h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Badge</th><th>Señal</th><th>SNR</th><th>Saltos</th><th>Visto</th><th>Paq.</th></tr></thead>
+          <tbody id="net"><tr><td colspan="6" class="empty">Conecta el badge para ver la red</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Mensajes</h2>
+      <div id="msgs"></div>
+      <form id="send">
+        <input id="text" maxlength="200" placeholder="Escribe un mensaje para la red…" disabled>
+        <button id="sendBtn" disabled>Enviar</button>
+      </form>
+    </section>
+  </div>
+
+  <section class="panel">
+    <h2>Mapa de calor de señal <small id="heatInfo"></small><span class="spacer"></span>
+      <select id="range">
+        <option value="60">Última hora</option>
+        <option value="240" selected>Últimas 4 h</option>
+        <option value="720">Últimas 12 h</option>
+        <option value="1440">Últimas 24 h</option>
+      </select>
+      <button id="csv" class="ghost small">Exportar CSV</button>
+      <button id="clear" class="ghost small">Borrar historial</button>
+    </h2>
+    <div class="heatwrap"><canvas id="heat"></canvas><div id="tip"></div></div>
+    <div class="legend">
+      Débil <canvas class="scale" id="scale" width="160" height="10"></canvas> Fuerte
+      · Cada celda es la mejor señal directa en ese intervalo · el borde verde marca ≥ -80 dBm (rango del juego de ajolotes)
+    </div>
+    <h2 style="margin-top:16px">¿Quién estuvo más cerca?</h2>
+    <div class="rank" id="rank"><div class="empty">Todavía no hay datos</div></div>
+  </section>
+
+  <p class="hint">Funciona en Chrome o Edge desde <code>http://localhost</code>. Cierra cualquier otro programa que use el puerto (por ejemplo la CLI <code>meshtastic</code>) antes de conectar. El historial se guarda en este navegador, aunque cierres la página.</p>
+</main>
+
+<script>
+// Protocolo: framing serial de Meshtastic [0x94 0xC3 lenHi lenLo] + protobuf ToRadio/FromRadio.
+// El firmware del badge manda la pantalla como FromRadio campo 99 (ver src/graphics/BadgeStream.cpp).
+const W = 428, H = 142;
+const STREAM_START = 0xe1, STREAM_STOP = 0xe2;
+const PORT_TEXT = 1, PORT_NODEINFO = 4, PORT_ADMIN = 6;
+const NEAR_DBM = -80;               // umbral del juego de ajolotes (src/modules/badge/AxolotlGame.h)
+const HISTORY_KEY = 'badge-history-v1';
+const KEEP_MS = 24 * 3600e3;
+
+const $ = (id) => document.getElementById(id);
+const ctx = $('screen').getContext('2d');
+const img = ctx.createImageData(W, H);
+for (let i = 3; i < img.data.length; i += 4) img.data[i] = 255;
+let dirty = false;
+
+let port, reader, writer, myNode = 0, heartbeat;
+// num -> { name, short, seen (ms), rssi, snr, hops, packets }
+const nodes = new Map();
+// num -> [[t ms, rssi, snr, hops], ...]
+let history = {};
+
+// ---------- protobuf mínimo ----------
+function varint(n) { const out = []; n = n >>> 0; while (n > 127) { out.push((n & 127) | 128); n >>>= 7; } out.push(n); return out; }
+function key(field, wire) { return varint((field << 3) | wire); }
+const pb = {
+  uint: (f, v) => [...key(f, 0), ...varint(v)],
+  fixed32: (f, v) => [...key(f, 5), v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255],
+  bytes: (f, b) => [...key(f, 2), ...varint(b.length), ...b],
+};
+// Los campos de 32 bits (wire 5) se entregan crudos; float32() los convierte cuando el campo es float.
+function* fields(buf) {
+  let i = 0;
+  // Los int32 negativos llegan como varint de 10 bytes: los 32 bits bajos, con signo, son el valor.
+  const rv = () => {
+    let r = 0, lo = 0, s = 0, b;
+    do { b = buf[i++]; r += (b & 127) * 2 ** s; if (s < 32) lo |= (b & 127) << s; s += 7; } while (b & 128);
+    return s > 35 ? lo | 0 : r;
+  };
+  while (i < buf.length) {
+    const k = rv(), f = Math.floor(k / 8), w = k & 7;
+    if (w === 0) yield [f, rv()];
+    else if (w === 2) { const n = rv(); yield [f, buf.subarray(i, i + n)]; i += n; }
+    else if (w === 5) { yield [f, (buf[i] | buf[i+1] << 8 | buf[i+2] << 16 | buf[i+3] << 24) >>> 0]; i += 4; }
+    else if (w === 1) { i += 8; }
+    else throw new Error('wire type ' + w);
+  }
+}
+const f32 = new DataView(new ArrayBuffer(4));
+const float32 = (u) => { f32.setUint32(0, u, true); return f32.getFloat32(0, true); };
+const utf8 = new TextDecoder();
+
+// ---------- envío ----------
+async function sendToRadio(bytes) {
+  const frame = new Uint8Array(4 + bytes.length);
+  frame.set([0x94, 0xc3, bytes.length >> 8, bytes.length & 255]);
+  frame.set(bytes, 4);
+  await writer.write(frame);
+}
+const rid = () => (Math.random() * 0xffffffff) >>> 0;
+function meshPacket(to, portnum, payload) {
+  const data = [...pb.uint(1, portnum), ...pb.bytes(2, payload)];
+  return [...pb.fixed32(2, to), ...pb.bytes(4, data), ...pb.fixed32(6, rid())];
+}
+function adminInput(code) {
+  const inputEvent = pb.uint(1, code);
+  const admin = pb.bytes(27, inputEvent);
+  return sendToRadio(pb.bytes(1, meshPacket(myNode, PORT_ADMIN, admin)));
+}
+function sendText(text, to = 0xffffffff) {
+  const payload = [...new TextEncoder().encode(text)];
+  return sendToRadio(pb.bytes(1, meshPacket(to, PORT_TEXT, payload)));
+}
+
+// ---------- recepción ----------
+function onStreamFrame(b) {
+  let idx = (b[0] << 24 | b[1] << 16 | b[2] << 8 | b[3]) >>> 0;
+  const d = img.data;
+  for (let i = 4; i + 2 < b.length; i += 3) {
+    // El firmware lee el buffer big-endian como uint16 nativo, así que cada píxel llega en little-endian.
+    const run = b[i] + 1, v = b[i + 2] << 8 | b[i + 1];
+    const r = (v >> 11) * 255 / 31, g = ((v >> 5) & 63) * 255 / 63, bl = (v & 31) * 255 / 31;
+    for (let k = 0; k < run && idx < W * H; k++, idx++) {
+      const p = idx * 4; d[p] = r; d[p + 1] = g; d[p + 2] = bl;
+    }
+  }
+  dirty = true;
+}
+function onFromRadio(buf) {
+  for (const [f, v] of fields(buf)) {
+    if (f === 99) onStreamFrame(v);
+    else if (f === 3) { for (const [g, x] of fields(v)) if (g === 1) myNode = x; }
+    else if (f === 4) onNodeInfo(v);
+    else if (f === 7) onConfigDone();
+    else if (f === 2) onPacket(v);
+    else if (f === 12) { let c = 0; for (const [g, x] of fields(v)) if (g === 1) c = x; xmodemReply?.(c); }
+  }
+}
+function node(num) {
+  let n = nodes.get(num);
+  if (!n) { n = { name: '', short: '', seen: 0, rssi: null, snr: null, hops: null, packets: 0 }; nodes.set(num, n); }
+  return n;
+}
+function applyUser(n, user) {
+  for (const [g, y] of fields(user)) {
+    if (g === 2) n.name = utf8.decode(y);
+    if (g === 3) n.short = utf8.decode(y);
+  }
+}
+// NodeInfo viene en la configuración inicial: nombre, último SNR y cuándo se oyó (sin RSSI).
+function onNodeInfo(v) {
+  let num = 0, user = null, snr = null, lastHeard = 0, hops = null;
+  for (const [f, x] of fields(v)) {
+    if (f === 1) num = x;
+    else if (f === 2) user = x;
+    else if (f === 4) snr = float32(x);
+    else if (f === 5) lastHeard = x;
+    else if (f === 9) hops = x;
+  }
+  if (!num) return;
+  const n = node(num);
+  if (user) applyUser(n, user);
+  if (lastHeard && !n.seen) { n.seen = lastHeard * 1000; n.snr = snr; n.hops = hops; }
+}
+function onPacket(v) {
+  let from = 0, to = 0, portnum = 0, payload = null, rssi = null, snr = null, hopLimit = 0, hopStart = 0;
+  for (const [f, x] of fields(v)) {
+    if (f === 1) from = x;
+    else if (f === 2) to = x;
+    else if (f === 8) snr = float32(x);
+    else if (f === 9) hopLimit = x;
+    else if (f === 12) rssi = x;
+    else if (f === 15) hopStart = x;
+    else if (f === 4) for (const [g, y] of fields(x)) { if (g === 1) portnum = y; if (g === 2) payload = y; }
+  }
+  if (from && from !== myNode && rssi) {
+    const n = node(from), now = Date.now();
+    const hops = hopStart ? hopStart - hopLimit : null;
+    Object.assign(n, { seen: now, rssi, snr, hops });
+    n.packets++;
+    record(from, now, rssi, snr, hops);
+    heatDirty = true;
+  }
+  if (portnum === PORT_NODEINFO && payload && from) { applyUser(node(from), payload); heatDirty = true; }
+  if (portnum === PORT_TEXT && payload) {
+    const meta = (to === 0xffffffff ? 'a todos' : 'directo') + (rssi ? ` · ${rssi} dBm` : '');
+    const text = utf8.decode(payload);
+    addMsg(label(from), text, meta, from === myNode);
+    if (from && from !== myNode && to === myNode) ctfHandle(from, text); // el CTF solo atiende mensajes directos
+  }
+}
+const hex = (n) => '!' + n.toString(16).padStart(8, '0');
+const label = (num) => nodes.get(num)?.name || hex(num);
+
+async function onConfigDone() {
+  status(`Conectado como ${label(myNode)}`, 'ok');
+  await adminInput(STREAM_START);
+  setEnabled(true);
+  claimCtfHost();
+}
+
+async function readLoop() {
+  let buf = new Uint8Array(0);
+  while (port && port.readable) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    const n = new Uint8Array(buf.length + value.length); n.set(buf); n.set(value, buf.length); buf = n;
+    let i = 0;
+    while (i + 4 <= buf.length) {
+      if (buf[i] !== 0x94 || buf[i + 1] !== 0xc3) { i++; continue; }
+      const len = buf[i + 2] << 8 | buf[i + 3];
+      if (len > 512) { i++; continue; }
+      if (i + 4 + len > buf.length) break;
+      try { onFromRadio(buf.subarray(i + 4, i + 4 + len)); } catch (e) { console.warn(e); }
+      i += 4 + len;
+    }
+    buf = buf.slice(i);
+  }
+}
+
+// ---------- historial ----------
+function loadHistory() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}');
+    history = saved.samples || {};
+    for (const [num, n] of Object.entries(saved.names || {})) Object.assign(node(+num), { name: n[0], short: n[1] });
+    prune();
+  } catch { history = {}; }
+}
+let saveTimer;
+function saveHistory() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    const names = {};
+    for (const num of Object.keys(history)) { const n = nodes.get(+num); if (n?.name) names[num] = [n.name, n.short]; }
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify({ samples: history, names })); } catch {}
+  }, 2000);
+}
+function prune() {
+  const cutoff = Date.now() - KEEP_MS;
+  for (const num of Object.keys(history)) {
+    history[num] = history[num].filter((s) => s[0] >= cutoff);
+    if (!history[num].length) delete history[num];
+  }
+}
+function record(num, t, rssi, snr, hops) {
+  (history[num] ||= []).push([t, rssi, snr == null ? null : Math.round(snr * 10) / 10, hops]);
+  saveHistory();
+}
+// Solo las muestras directas (0 saltos) miden la distancia a ese badge; las retransmitidas miden al que retransmitió.
+const isDirect = (s) => s[3] === 0 || s[3] == null;
+
+// ---------- panel de red ----------
+const sigColor = (rssi) => rssi >= NEAR_DBM ? 'var(--ok)' : rssi >= -100 ? 'var(--accent)' : 'var(--err)';
+const sigPct = (rssi) => Math.max(4, Math.min(100, (rssi + 120) / 90 * 100));
+function ago(ms) {
+  const s = Math.round((Date.now() - ms) / 1000);
+  if (s < 60) return `${s} s`;
+  if (s < 3600) return `${Math.floor(s / 60)} min`;
+  return `${Math.floor(s / 3600)} h ${Math.floor(s / 60) % 60} min`;
+}
+function renderNet() {
+  const list = [...nodes.entries()].filter(([num, n]) => num !== myNode && n.seen);
+  const sort = $('sort').value;
+  list.sort(([, a], [, b]) =>
+    sort === 'rssi' ? (b.rssi ?? -999) - (a.rssi ?? -999) :
+    sort === 'name' ? (a.name || '').localeCompare(b.name || '') : b.seen - a.seen);
+  const live = list.filter(([, n]) => Date.now() - n.seen < 15 * 60e3).length;
+  $('netCount').textContent = list.length ? `${live} activos en 15 min · ${list.length} en total` : '';
+  if (!list.length) {
+    $('net').innerHTML = `<tr><td colspan="6" class="empty">${port ? 'Esperando paquetes de otros badges…' : 'Conecta el badge para ver la red'}</td></tr>`;
+    return;
+  }
+  const rows = list.map(([num, n]) => {
+    const tr = document.createElement('tr');
+    if (n.rssi != null && n.rssi >= NEAR_DBM && n.hops === 0) tr.className = 'near';
+    else if (Date.now() - n.seen > 15 * 60e3) tr.className = 'stale';
+    const sig = n.rssi == null ? '<span class="pill">sin dato</span>' :
+      `<span class="sig"><i style="width:${sigPct(n.rssi)}%;background:${sigColor(n.rssi)}"></i></span>${n.rssi} dBm`;
+    const hops = n.hops == null ? '?' : n.hops === 0 ? '<span class="pill direct">directo</span>' : n.hops;
+    tr.innerHTML = `<td class="name"><b></b><span></span></td><td>${sig}</td><td>${n.snr == null ? '' : n.snr.toFixed(1)}</td><td>${hops}</td><td>${ago(n.seen)}</td><td>${n.packets || ''}</td>`;
+    tr.querySelector('b').textContent = n.name || hex(num);
+    tr.querySelector('.name span').textContent = (n.short ? n.short + ' · ' : '') + hex(num);
+    return tr;
+  });
+  $('net').replaceChildren(...rows);
+}
+
+// ---------- mapa de calor ----------
+let heatDirty = true, heatLayout = null;
+const LABEL_W = 150, ROW_H = 20, AXIS_H = 22, CELL_MIN = 6;
+// Escala: azul (débil, -120) -> amarillo -> rojo (fuerte, -30)
+function heatColor(rssi) {
+  const t = Math.max(0, Math.min(1, (rssi + 120) / 90));
+  const stops = [[0, [30, 60, 140]], [0.45, [40, 170, 200]], [0.7, [255, 200, 0]], [1, [255, 60, 60]]];
+  for (let i = 1; i < stops.length; i++) {
+    if (t <= stops[i][0]) {
+      const [t0, a] = stops[i - 1], [t1, b] = stops[i], k = (t - t0) / (t1 - t0);
+      return `rgb(${a.map((v, j) => Math.round(v + (b[j] - v) * k)).join(',')})`;
+    }
+  }
+  return 'rgb(255,60,60)';
+}
+function drawScale() {
+  const c = $('scale').getContext('2d');
+  for (let x = 0; x < 160; x++) { c.fillStyle = heatColor(-120 + x / 159 * 90); c.fillRect(x, 0, 1, 10); }
+}
+function renderHeat() {
+  const minutes = +$('range').value, now = Date.now(), start = now - minutes * 60e3;
+  const bucketMin = minutes <= 60 ? 1 : minutes <= 240 ? 5 : minutes <= 720 ? 10 : 20;
+  const cols = Math.ceil(minutes / bucketMin), bucketMs = bucketMin * 60e3;
+  const rows = [];
+  for (const [num, samples] of Object.entries(history)) {
+    const cells = new Array(cols).fill(null);
+    let best = -999, nearMs = 0, lastNear = 0;
+    for (const s of samples) {
+      if (s[0] < start || !isDirect(s)) continue;
+      const c = Math.min(cols - 1, Math.floor((s[0] - start) / bucketMs));
+      if (cells[c] == null || s[1] > cells[c]) cells[c] = s[1];
+      best = Math.max(best, s[1]);
+      // Tiempo cerca: cada muestra cercana cuenta hasta 2 min (los hellos llegan cada 40-70 s).
+      if (s[1] >= NEAR_DBM) { nearMs += lastNear ? Math.min(s[0] - lastNear, 120e3) : 60e3; lastNear = s[0]; } else lastNear = 0;
+    }
+    if (best > -999) rows.push({ num: +num, cells, best, nearMs, count: samples.length });
+  }
+  rows.sort((a, b) => b.nearMs - a.nearMs || b.best - a.best);
+
+  const wrap = document.querySelector('.heatwrap');
+  const cell = Math.max(CELL_MIN, Math.floor((wrap.clientWidth - LABEL_W - 4) / cols));
+  const cw = LABEL_W + cell * cols, ch = AXIS_H + Math.max(1, rows.length) * ROW_H;
+  const cv = $('heat'), dpr = window.devicePixelRatio || 1;
+  cv.width = cw * dpr; cv.height = ch * dpr; cv.style.width = cw + 'px'; cv.style.height = ch + 'px';
+  const c = cv.getContext('2d');
+  c.scale(dpr, dpr);
+  c.font = '12px system-ui, sans-serif'; c.textBaseline = 'middle';
+
+  // Eje de tiempo
+  c.fillStyle = '#9fb3d1';
+  const tickEvery = Math.ceil(60 / cell); // una etiqueta de hora cada ~60 px
+  for (let i = 0; i < cols; i += tickEvery) {
+    const t = new Date(start + i * bucketMs);
+    c.fillText(t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), LABEL_W + i * cell, AXIS_H / 2);
+  }
+  if (!rows.length) {
+    c.fillText('Todavía no hay muestras directas en este rango.', LABEL_W, AXIS_H + ROW_H / 2);
+  }
+  rows.forEach((r, y) => {
+    const top = AXIS_H + y * ROW_H;
+    c.fillStyle = '#eaf2ff';
+    let name = label(r.num);
+    while (c.measureText(name).width > LABEL_W - 10 && name.length > 3) name = name.slice(0, -2) + '…';
+    c.fillText(name, 0, top + ROW_H / 2);
+    c.fillStyle = '#0a1a33'; c.fillRect(LABEL_W, top + 1, cell * cols, ROW_H - 2);
+    r.cells.forEach((v, x) => {
+      if (v == null) return;
+      c.fillStyle = heatColor(v);
+      c.fillRect(LABEL_W + x * cell, top + 1, Math.max(1, cell - 1), ROW_H - 2);
+      if (v >= NEAR_DBM && cell >= 4) { c.strokeStyle = '#3ddc84'; c.lineWidth = 1; c.strokeRect(LABEL_W + x * cell + .5, top + 1.5, cell - 2, ROW_H - 3); }
+    });
+  });
+  heatLayout = { rows, start, bucketMs, cell, cols };
+  const total = Object.values(history).reduce((a, s) => a + s.length, 0);
+  $('heatInfo').textContent = total ? `${total} muestras · celdas de ${bucketMin} min` : '';
+  renderRank(rows);
+}
+function fmtDur(ms) { const m = Math.round(ms / 60e3); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; }
+function renderRank(rows) {
+  const top = rows.filter((r) => r.nearMs > 0).slice(0, 12);
+  const list = top.length ? top : rows.slice(0, 12);
+  if (!list.length) { $('rank').innerHTML = '<div class="empty">Todavía no hay datos</div>'; return; }
+  $('rank').replaceChildren(...list.map((r, i) => {
+    const d = document.createElement('div');
+    d.innerHTML = '<b></b><strong></strong><span></span>';
+    d.querySelector('b').textContent = `#${i + 1}`;
+    d.querySelector('strong').textContent = label(r.num);
+    d.querySelector('span').textContent = (r.nearMs ? `${fmtDur(r.nearMs)} cerca · ` : '') + `mejor señal ${r.best} dBm`;
+    return d;
+  }));
+}
+$('heat').addEventListener('mousemove', (e) => {
+  const tip = $('tip');
+  if (!heatLayout) return;
+  const rect = e.target.getBoundingClientRect(), x = e.clientX - rect.left, y = e.clientY - rect.top;
+  const col = Math.floor((x - LABEL_W) / heatLayout.cell), row = Math.floor((y - AXIS_H) / ROW_H);
+  const r = heatLayout.rows[row];
+  if (!r || col < 0 || col >= heatLayout.cols) { tip.style.display = 'none'; return; }
+  const t = new Date(heatLayout.start + col * heatLayout.bucketMs);
+  const v = r.cells[col];
+  tip.textContent = `${label(r.num)} · ${t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · ${v == null ? 'sin señal' : v + ' dBm'}`;
+  tip.style.display = 'block';
+  tip.style.left = Math.min(x + 12, e.target.clientWidth - tip.offsetWidth) + 'px';
+  tip.style.top = (y + 14) + 'px';
+});
+$('heat').addEventListener('mouseleave', () => { $('tip').style.display = 'none'; });
+$('range').onchange = () => { heatDirty = true; };
+$('sort').onchange = renderNet;
+window.addEventListener('resize', () => { heatDirty = true; });
+
+// Los nombres vienen del radio: uno que empiece con = + - @ sería una fórmula al abrir el CSV en Excel.
+const csvText = (s) => '"' + (/^[=+\-@\t\r]/.test(s) ? "'" + s : s).replace(/"/g, '""') + '"';
+$('csv').onclick = () => {
+  const lines = ['fecha,badge,id,rssi_dbm,snr_db,saltos'];
+  for (const [num, samples] of Object.entries(history))
+    for (const s of samples)
+      lines.push([new Date(s[0]).toISOString(), csvText(label(+num)), hex(+num), s[1], s[2] ?? '', s[3] ?? ''].join(','));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' }));
+  a.download = `senal-badges-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+};
+$('clear').onclick = () => {
+  if (!confirm('¿Borrar todo el historial de señal guardado en este navegador?')) return;
+  history = {};
+  try { localStorage.removeItem(HISTORY_KEY); } catch {}
+  heatDirty = true;
+};
+
+// ---------- bucles de dibujo ----------
+function draw() { if (dirty) { ctx.putImageData(img, 0, 0); dirty = false; } requestAnimationFrame(draw); }
+requestAnimationFrame(draw);
+// La columna "Visto" avanza sola, así que la tabla se repinta cada segundo; el mapa cada 15 s o con datos nuevos.
+setInterval(renderNet, 1000);
+let lastHeat = 0;
+setInterval(() => {
+  if (heatDirty || Date.now() - lastHeat > 15e3) { prune(); renderHeat(); heatDirty = false; lastHeat = Date.now(); }
+}, 1000);
+
+// ---------- UI ----------
+function status(t, cls = '') { const s = $('status'); s.textContent = t; s.className = cls; }
+function setEnabled(on) {
+  for (const b of document.querySelectorAll('.key')) b.disabled = !on;
+  $('text').disabled = $('sendBtn').disabled = $('snap').disabled = $('upload').disabled = !on;
+  $('boardUp').disabled = $('ctfAnnounce').disabled = $('champUp').disabled = !on;
+}
+function addMsg(who, text, meta, me) {
+  const el = document.createElement('div');
+  el.className = 'msg' + (me ? ' me' : '');
+  el.innerHTML = '<div class="who"></div><div class="body"></div><div class="meta"></div>';
+  el.querySelector('.who').textContent = who;
+  el.querySelector('.body').textContent = text;
+  el.querySelector('.meta').textContent = new Date().toLocaleTimeString() + (meta ? ' · ' + meta : '');
+  $('msgs').append(el); el.scrollIntoView({ block: 'nearest' });
+}
+
+$('connect').onclick = async () => {
+  if (!('serial' in navigator)) return status('Este navegador no tiene Web Serial. Usa Chrome o Edge.', 'err');
+  try {
+    port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x303a }] });
+    await port.open({ baudRate: 115200, bufferSize: 65536 });
+    writer = port.writable.getWriter();
+    reader = port.readable.getReader();
+    status('Conectando…');
+    $('connect').disabled = true; $('disconnect').disabled = false;
+    readLoop().catch((e) => { status('Se perdió la conexión: ' + e.message, 'err'); cleanup(); });
+    await writer.write(new Uint8Array(32).fill(0xc3)); // despierta el puerto
+    await new Promise((r) => setTimeout(r, 100));
+    await sendToRadio(pb.uint(3, rid())); // want_config_id
+    heartbeat = setInterval(() => sendToRadio(pb.bytes(7, [])).catch(() => {}), 60000);
+  } catch (e) {
+    status(e.name === 'NotFoundError' ? 'No elegiste ningún puerto' : 'Error: ' + e.message, 'err');
+    cleanup();
+  }
+};
+
+async function cleanup() {
+  clearInterval(heartbeat);
+  setEnabled(false);
+  $('connect').disabled = false; $('disconnect').disabled = true;
+  const p = port; port = null;
+  try { await reader?.cancel(); } catch {}
+  try { reader?.releaseLock(); writer?.releaseLock(); } catch {}
+  try { await p?.close(); } catch {}
+}
+$('disconnect').onclick = async () => {
+  try { await adminInput(STREAM_STOP); } catch {}
+  await cleanup();
+  status('Desconectado');
+};
+window.addEventListener('beforeunload', () => { if (port) adminInput(STREAM_STOP); });
+
+for (const b of document.querySelectorAll('.key')) b.onclick = () => adminInput(+b.dataset.code);
+
+$('send').onsubmit = async (e) => {
+  e.preventDefault();
+  const t = $('text').value.trim();
+  if (!t) return;
+  await sendText(t);
+  addMsg(label(myNode) || 'Yo', t, 'enviado', true);
+  $('text').value = '';
+};
+
+$('snap').onclick = () => {
+  const c = document.createElement('canvas'); c.width = W * 3; c.height = H * 3;
+  const x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage($('screen'), 0, 0, c.width, c.height);
+  const a = document.createElement('a');
+  a.download = `badge-${Date.now()}.png`; a.href = c.toDataURL('image/png'); a.click();
+};
+
+// ---------- XModem: subir archivos al badge (ver src/xmodem.cpp) ----------
+const XM = { SOH: 1, EOT: 4, ACK: 6, NAK: 21, CAN: 24 };
+let xmodemReply = null;
+function crc16(buf) {
+  let crc = 0;
+  for (const b of buf) {
+    crc = ((crc >> 8) | (crc << 8)) & 0xffff;
+    crc ^= b;
+    crc ^= (crc & 0xff) >> 4;
+    crc ^= (crc << 12) & 0xffff;
+    crc ^= ((crc & 0xff) << 5) & 0xffff;
+  }
+  return crc;
+}
+function xmodemExchange(control, seq, buf) {
+  const msg = [...pb.uint(1, control)];
+  if (seq) msg.push(...pb.uint(2, seq));
+  if (buf) { const c = crc16(buf); if (c) msg.push(...pb.uint(3, c)); msg.push(...pb.bytes(4, buf)); }
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => { xmodemReply = null; resolve('timeout'); }, 3000);
+    xmodemReply = (c) => { clearTimeout(timer); xmodemReply = null; resolve(c); };
+    sendToRadio(pb.bytes(5, msg)).catch(() => {});
+  });
+}
+async function xmodemSend(path, bytes, onProgress) {
+  const step = async (control, seq, buf) => {
+    for (let tries = 0; tries < 4; tries++) {
+      const r = await xmodemExchange(control, seq, buf);
+      if (r === XM.ACK) return;
+      if (r === XM.CAN) throw new Error('el badge canceló la transferencia');
+    }
+    throw new Error(`el badge no confirmó el bloque ${seq}`);
+  };
+  await step(XM.SOH, 0, new Uint8Array([...new TextEncoder().encode(path), 0]));
+  try {
+    for (let i = 0, seq = 1; i < bytes.length; i += 128, seq++) {
+      await step(XM.SOH, seq, bytes.subarray(i, i + 128));
+      onProgress(Math.min(1, (i + 128) / bytes.length));
+    }
+    await step(XM.EOT, 0, null);
+  } catch (e) {
+    await xmodemExchange(XM.CAN, 0, null); // borra el archivo a medias
+    throw e;
+  }
+}
+
+// ---------- Mi página: diseño 428x142 para la página Canvas ----------
+const THEMES = {
+  jsconf: { bg: '#17334b', bg2: '#0e2235', accent: '#f6b818', fg: '#ffffff', muted: '#9fc3e0' },
+  rosa:   { bg: '#ffd6e8', bg2: '#ffb3d1', accent: '#d6246e', fg: '#3a0d22', muted: '#8a3b5f' },
+  neon:   { bg: '#0a0a14', bg2: '#16162a', accent: '#39ff14', fg: '#ffffff', muted: '#ff4fd8' },
+};
+const ASSETS = 'assets/jsconfmx-2026-';
+const imgCache = new Map();
+function loadImg(src) {
+  if (!imgCache.has(src)) imgCache.set(src, new Promise((res) => {
+    const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src;
+  }));
+  return imgCache.get(src);
+}
+let customImg = null;
+const dctx = $('design').getContext('2d');
+function fitFont(c, text, family, maxW, maxPx, minPx) {
+  let px = maxPx;
+  do { c.font = `${px}px ${family}`; } while (c.measureText(text).width > maxW && --px > minPx);
+  return px;
+}
+function containRect(img, x, y, w, h) {
+  const s = Math.min(w / img.width, h / img.height), dw = img.width * s, dh = img.height * s;
+  return [x + (w - dw) / 2, y + (h - dh) / 2, dw, dh];
+}
+async function renderDesign() {
+  await document.fonts.load('40px Chango'); await document.fonts.load('20px Righteous');
+  const c = dctx, t = THEMES[$('dTheme').value], DW = 428, DH = 142;
+  const handle = $('dHandle').value.trim(), name = $('dName').value.trim(), line = $('dLine').value.trim();
+  const axo = $('dAxo').value, net = $('dNet').value, qrText = $('dQr').value.trim();
+  c.imageSmoothingEnabled = true;
+
+  // Fondo con degradado y una franja de acento
+  const g = c.createLinearGradient(0, 0, DW, DH);
+  g.addColorStop(0, t.bg); g.addColorStop(1, t.bg2);
+  c.fillStyle = g; c.fillRect(0, 0, DW, DH);
+  c.fillStyle = t.accent; c.fillRect(0, DH - 5, DW, 5);
+
+  let left = 10, right = DW - 10;
+  // Imagen propia o ajolote a la izquierda
+  const pic = customImg || (axo ? await loadImg(ASSETS + 'axolotl-' + axo + '.svg') : null);
+  if (pic) { c.drawImage(pic, ...containRect(pic, 4, 4, 128, DH - 12)); left = 138; }
+  // QR a la derecha, blanco con margen para que se pueda escanear
+  if (qrText && window.qrcode) {
+    const q = qrcode(0, 'M'); q.addData(qrText); q.make();
+    const n = q.getModuleCount(), cell = Math.max(1, Math.floor(118 / (n + 2))), size = cell * (n + 2);
+    const qx = DW - size - 8, qy = Math.round((DH - 5 - size) / 2);
+    c.fillStyle = '#ffffff'; c.fillRect(qx, qy, size, size);
+    c.fillStyle = '#000000';
+    for (let r = 0; r < n; r++) for (let k = 0; k < n; k++) if (q.isDark(r, k)) c.fillRect(qx + (k + 1) * cell, qy + (r + 1) * cell, cell, cell);
+    right = qx - 8;
+  }
+  const w = right - left, cx = left + w / 2;
+  c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+
+  // Usuario grande, con icono de la red social si hay
+  const icon = net ? await loadImg(ASSETS + net + '.svg') : null;
+  const hp = fitFont(c, handle, 'Chango', w - (icon ? 34 : 0), 40, 14);
+  const hw = c.measureText(handle).width, hy = name ? 64 : 84;
+  if (icon) {
+    const iw = hp * 0.9, ix = cx - (hw + iw + 6) / 2;
+    c.drawImage(icon, ix, hy - hp * 0.8, iw, iw);
+    c.fillStyle = t.accent; c.textAlign = 'left'; c.fillText(handle, ix + iw + 6, hy);
+    c.textAlign = 'center';
+  } else { c.fillStyle = t.accent; c.fillText(handle, cx, hy); }
+
+  if (name) { c.fillStyle = t.fg; fitFont(c, name, 'Righteous', w, 26, 12); c.fillText(name, cx, hy + 34); }
+  if (line) { c.fillStyle = t.muted; fitFont(c, line, 'Righteous', w, 15, 9); c.fillText(line, cx, DH - 14); }
+}
+// RGB565 big-endian, el formato que espera BadgeCanvasModule. 0xF81F es el color transparente del badge.
+function canvasBytes(c) {
+  const d = c.getImageData(0, 0, 428, 142).data, out = new Uint8Array(428 * 142 * 2);
+  for (let i = 0, o = 0; i < d.length; i += 4, o += 2) {
+    let v = (d[i] >> 3) << 11 | (d[i + 1] >> 2) << 5 | d[i + 2] >> 3;
+    if (v === 0xf81f) v = 0xf81e;
+    out[o] = v >> 8; out[o + 1] = v & 255;
+  }
+  return out;
+}
+let renderTimer;
+const scheduleRender = () => { clearTimeout(renderTimer); renderTimer = setTimeout(renderDesign, 80); };
+for (const id of ['dHandle', 'dName', 'dLine', 'dNet', 'dAxo', 'dTheme', 'dQr']) $(id).addEventListener('input', scheduleRender);
+$('dImg').onchange = () => {
+  const f = $('dImg').files[0];
+  if (!f) { customImg = null; return scheduleRender(); }
+  const i = new Image(); i.onload = () => { customImg = i; scheduleRender(); }; i.src = URL.createObjectURL(f);
+};
+$('saveDesign').onclick = () => {
+  const a = document.createElement('a'); a.download = 'mi-pagina-badge.png'; a.href = $('design').toDataURL('image/png'); a.click();
+};
+// Una sola subida a la vez: el diseño y el marcador del CTF comparten la página Canvas.
+let uploading = false;
+async function uploadCanvas(c) {
+  if (uploading) throw new Error('ya hay una subida en curso');
+  uploading = true;
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  try {
+    const t0 = Date.now();
+    // Si el badge está mostrando la página Canvas mientras se reemplaza el archivo, se reinicia o no repinta.
+    // Código 0 no hace nada en la UI pero enciende la pantalla si estaba apagada; luego Back la apaga.
+    $('upStatus').textContent = 'Apagando la pantalla del badge…';
+    await adminInput(0); await sleep(700);
+    await adminInput(24); await sleep(500);
+    $('upStatus').textContent = 'Subiendo…';
+    await xmodemSend('/prefs/canvas.bin', canvasBytes(c), (p) => {
+      $('upBar').style.width = (p * 100).toFixed(1) + '%';
+      $('upStatus').textContent = `Subiendo… ${Math.round(p * 100)}%`;
+    });
+    await sleep(700); // el módulo Canvas revisa el archivo cada 250 ms al terminar la transferencia
+    await adminInput(0); // vuelve a encender la pantalla, ya con la imagen nueva
+    $('upStatus').textContent = `¡Listo en ${((Date.now() - t0) / 1000).toFixed(1)} s! Ve a la página "Canvas" del badge para verla.`;
+  } catch (e) {
+    try { await adminInput(0); } catch {} // que la pantalla no se quede apagada
+    $('upStatus').textContent = 'No se pudo subir: ' + e.message;
+    throw e;
+  } finally {
+    uploading = false;
+  }
+}
+$('upload').onclick = async () => {
+  $('upload').disabled = true;
+  try { await renderDesign(); await uploadCanvas(dctx); } catch {} finally { $('upload').disabled = !port; }
+};
+
+// ---------- CTF por radio ----------
+// Las flags no están en el código: solo su SHA-256 (en minúsculas). Los retos se generaron fuera de la página.
+const CTF_KEY = 'badge-ctf-v1';
+const CHALLENGES = [
+  { id: 1, pts: 100, hash: 'bcbf589ee21e825a09a6e27e07e8eccdc894406bec0447c4947298a0a2ab1ecb',
+    text: 'Reto 1 (fácil, 100 pts): alguien dejó esto en la malla. ¿Qué dice?\nQ1RGe2hvbGFfZGVzZGVfbGFfbWFsbGF9\nPista: 64' },
+  { id: 2, pts: 200, hash: '7f4ac1c5aadc5361011837b80fe1f67fce58ed21ce230a9d0b57505bf8da4d45',
+    text: 'Reto 2 (medio, 200 pts): NHW{bfgta_lz_rjzzftp}\nEs Vigenère. La llave está en el gafete de @cibergabs: búscame en JSConf 👀' },
+  { id: 3, pts: 300, hash: 'cd19ba4ea54e7f608fe45380f0936b9042449bf22658bf41a4e6487bab56c068',
+    text: 'Reto 3 (difícil, 300 pts):\n223323150c0a13381c31150f0e0b0a1a11163e0b0009110b050617071b161c\nXOR con llave repetida. La llave: el ajolote legendario (3%), en minúsculas.' },
+];
+const CTF_HELP = '🏴 CTF por radio de @cibergabs\n!reto1 fácil (100)\n!reto2 medio (200)\n!reto3 difícil (300)\nResponde: !flag CTF{...}\n!top = marcador\n🏆 Premio al 1.º: gafete de campeón';
+let ctf = { players: {} }; // num -> { name, solved: { id: ms } }
+const lastReply = new Map();
+const replyTimes = [];
+let floodWarned = false;
+try { ctf = JSON.parse(localStorage.getItem(CTF_KEY)) || ctf; } catch {}
+const saveCtf = () => { try { localStorage.setItem(CTF_KEY, JSON.stringify(ctf)); } catch {} };
+// El bot solo corre en el badge que lo activó, para no contestar desde el gafete del ganador al entregar el premio.
+const isCtfHost = () => !ctf.host || ctf.host === myNode;
+function claimCtfHost() {
+  if (!myNode || !$('ctfOn').checked) return;
+  if (!ctf.host) { ctf.host = myNode; saveCtf(); }
+  if (!isCtfHost()) ctfLog(`Bot en pausa: el gafete conectado (${label(myNode)}) no es el que corre el CTF`, 'bad');
+}
+
+async function sha256hex(s) {
+  const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+const score = (p) => Object.keys(p.solved).reduce((a, id) => a + CHALLENGES[id - 1].pts, 0);
+function ranking() {
+  return Object.entries(ctf.players)
+    .map(([num, p]) => ({ num: +num, ...p, pts: score(p), last: Math.max(0, ...Object.values(p.solved)) }))
+    .filter((p) => p.pts > 0)
+    .sort((a, b) => b.pts - a.pts || a.last - b.last); // empate: gana quien llegó primero
+}
+function ctfLog(text, cls = '') {
+  const el = document.createElement('div'); el.className = cls;
+  el.textContent = `${new Date().toLocaleTimeString()}  ${text}`;
+  $('ctfLog').append(el); el.scrollIntoView({ block: 'nearest' });
+}
+// Un mensaje de Meshtastic carga ~200 bytes: los textos largos se parten en varios.
+async function reply(to, text) {
+  const enc = new TextEncoder(), parts = [];
+  let cur = '';
+  for (const line of text.split('\n')) {
+    const next = cur ? cur + '\n' + line : line;
+    if (enc.encode(next).length > 190 && cur) { parts.push(cur); cur = line; } else cur = next;
+  }
+  parts.push(cur);
+  for (let i = 0; i < parts.length; i++) {
+    if (i) await new Promise((r) => setTimeout(r, 1500));
+    await sendText(parts[i], to);
+  }
+}
+async function ctfHandle(from, raw) {
+  const text = raw.trim();
+  if (!$('ctfOn').checked || !text.startsWith('!') || !isCtfHost()) return;
+  // Máximo una respuesta cada 4 s por jugador: el aire de LoRa se comparte con ~100 badges.
+  if (Date.now() - (lastReply.get(from) || 0) < 4000) return;
+  // Y máximo 12 por minuto en total: el remitente de un paquete se puede falsificar, así que el límite
+  // por jugador no basta para impedir que alguien use el bot para saturar el canal.
+  const now = Date.now();
+  while (replyTimes.length && now - replyTimes[0] > 60e3) replyTimes.shift();
+  if (replyTimes.length >= 12) { if (!floodWarned) ctfLog('⚠️ Demasiados mensajes: el bot ignora comandos por un momento', 'bad'); floodWarned = true; return; }
+  floodWarned = false;
+  replyTimes.push(now);
+  lastReply.set(from, now);
+  const who = label(from), [cmd, ...rest] = text.split(/\s+/), arg = rest.join(' ');
+  ctfLog(`${who}: ${text}`, 'in');
+  const player = (ctf.players[from] ||= { name: who, solved: {} });
+  player.name = who;
+
+  if (/^!ctf$/i.test(cmd)) return reply(from, CTF_HELP);
+  const m = cmd.match(/^!reto([123])$/i);
+  if (m) return reply(from, CHALLENGES[m[1] - 1].text);
+  if (/^!top$/i.test(cmd)) {
+    const r = ranking().slice(0, 5);
+    return reply(from, r.length ? '🏆 ' + r.map((p, i) => `${i + 1}. ${p.name} ${p.pts}`).join(' · ') : '🏆 Nadie ha resuelto nada. ¡Sé el primero! !reto1');
+  }
+  if (/^!flag$/i.test(cmd)) {
+    const h = await sha256hex(arg.toLowerCase());
+    const ch = CHALLENGES.find((c) => c.hash === h);
+    if (!ch) { ctfLog(`✗ ${who} falló: ${arg}`, 'bad'); return reply(from, '❌ Esa no es. Sigue intentando 💪'); }
+    if (player.solved[ch.id]) return reply(from, `😉 Ya tenías el reto ${ch.id}. Llevas ${score(player)} pts.`);
+    const first = !Object.values(ctf.players).some((p) => p.solved[ch.id]);
+    player.solved[ch.id] = Date.now();
+    saveCtf(); renderCtf(); scheduleBoardUpload();
+    const pos = ranking().findIndex((p) => p.num === from) + 1;
+    ctfLog(`✓ ${who} resolvió el reto ${ch.id} (+${ch.pts})${first ? ' 🩸 primera sangre' : ''}`, 'ok');
+    const done = Object.keys(player.solved).length === CHALLENGES.length;
+    return reply(from, `✅ ¡Correcto! +${ch.pts}${first ? ' 🩸 ¡Primera sangre!' : ''}\nLlevas ${score(player)} pts (#${pos}).` +
+      (done ? '\n🏴 ¡Completaste el CTF! Ven a buscar a @cibergabs 🤝' : ' !top'));
+  }
+  return reply(from, 'No conozco ese comando. Manda !ctf');
+}
+
+// Marcador: tabla en la web y una imagen 428x142 para la página Canvas del badge
+const bctx = $('board').getContext('2d');
+async function renderBoard() {
+  await document.fonts.load('30px Chango'); await document.fonts.load('16px Righteous');
+  const c = bctx, r = ranking();
+  c.fillStyle = '#05070d'; c.fillRect(0, 0, 428, 142);
+  c.fillStyle = '#39ff14'; c.fillRect(0, 137, 428, 5);
+  c.textBaseline = 'alphabetic'; c.textAlign = 'left';
+  // Columna izquierda de 165 px; el top 5 va de x=186 en adelante
+  c.fillStyle = '#39ff14'; c.font = '24px Chango'; c.fillText('CTF', 10, 32);
+  c.fillStyle = '#ffffff'; fitFont(c, '@cibergabs', 'Righteous', 95, 15, 10); c.fillText('@cibergabs', 75, 30);
+  c.fillStyle = '#ff4fd8'; fitFont(c, 'Manda !ctf por DM a GABS', 'Righteous', 165, 13, 9); c.fillText('Manda !ctf por DM a GABS', 10, 58);
+  // La llave del reto 2: solo se ve en persona
+  c.strokeStyle = '#f6b818'; c.lineWidth = 2; c.strokeRect(10, 74, 150, 48);
+  c.fillStyle = '#f6b818'; c.font = '12px Righteous'; c.fillText('LLAVE RETO 2', 20, 92);
+  c.font = '22px Chango'; c.fillText('LORA', 20, 116);
+  // Top 5
+  c.fillStyle = '#9fb3d1'; c.font = '12px Righteous'; c.fillText('TOP', 186, 22);
+  if (!r.length) { c.fillStyle = '#ffffff'; c.font = '15px Righteous'; c.fillText('¿Quién será el primero?', 186, 70); }
+  r.slice(0, 5).forEach((p, i) => {
+    const y = 44 + i * 21;
+    c.fillStyle = i === 0 ? '#39ff14' : '#ffffff'; c.font = '15px Righteous'; c.textAlign = 'left';
+    let name = `${i + 1}. ${p.name}`;
+    while (c.measureText(name).width > 170 && name.length > 4) name = name.slice(0, -2) + '…';
+    c.fillText(name, 186, y);
+    c.textAlign = 'right'; c.fillText(String(p.pts), 418, y);
+  });
+}
+function renderCtf() {
+  const r = ranking(), players = Object.keys(ctf.players).length;
+  $('ctfInfo').textContent = players ? `${players} jugadores · ${r.length} con puntos` : '';
+  $('ctfTable').replaceChildren(...(r.length ? r.map((p, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${i + 1}</td><td class="name"><b></b></td><td></td><td>${p.pts}</td>`;
+    tr.querySelector('b').textContent = p.name;
+    tr.children[2].innerHTML = CHALLENGES.map((c) => p.solved[c.id] ? `<span class="solved">✓${c.id}</span>` : `·${c.id}`).join(' ');
+    return tr;
+  }) : [Object.assign(document.createElement('tr'), { innerHTML: '<td colspan="4" class="empty">Nadie ha resuelto nada todavía</td>' })]));
+  renderBoard();
+  renderChamp();
+}
+// Subir el marcador tarda ~8 s: se agrupan los cambios y se sube como mucho una vez por minuto.
+let boardTimer = null, lastBoardUp = 0;
+function scheduleBoardUpload() {
+  if (!$('boardAuto').checked || !port || boardTimer || !isCtfHost()) return;
+  boardTimer = setTimeout(async () => {
+    boardTimer = null;
+    if (uploading) return scheduleBoardUpload();
+    lastBoardUp = Date.now();
+    try { await renderBoard(); await uploadCanvas(bctx); ctfLog('Marcador actualizado en el badge'); } catch (e) { ctfLog('No se pudo subir el marcador: ' + e.message, 'bad'); }
+  }, Math.max(5000, 60000 - (Date.now() - lastBoardUp)));
+}
+$('boardUp').onclick = async () => {
+  $('boardUp').disabled = true;
+  try { await renderBoard(); await uploadCanvas(bctx); ctfLog('Marcador subido al badge'); } catch (e) { ctfLog('No se pudo subir el marcador: ' + e.message, 'bad'); }
+  finally { $('boardUp').disabled = !port; }
+};
+$('boardAuto').onchange = () => { try { localStorage.setItem('badge-ctf-auto', $('boardAuto').checked ? '1' : ''); } catch {} };
+$('ctfOn').onchange = () => {
+  try { localStorage.setItem('badge-ctf-on', $('ctfOn').checked ? '1' : ''); } catch {}
+  ctfLog($('ctfOn').checked ? 'Bot activado' : 'Bot pausado');
+  claimCtfHost();
+};
+$('ctfAnnounce').onclick = async () => {
+  if (!confirm('¿Mandar un anuncio del CTF a todos los badges por el canal público?')) return;
+  await sendText('🏴 ¡CTF por radio en JSConf! 3 retos de ciberseguridad. Manda !ctf por mensaje directo a GABS (Gabriel cibergabs)');
+  ctfLog('Anuncio enviado al canal público');
+};
+$('ctfReset').onclick = () => {
+  if (!confirm('¿Borrar todos los puntos del CTF?')) return;
+  ctf = { players: {} }; saveCtf(); renderCtf(); ctfLog('CTF reiniciado'); claimCtfHost();
+};
+// Premio: página Canvas de campeón para el gafete del ganador
+const cctx = $('champ').getContext('2d');
+async function renderChamp() {
+  await document.fonts.load('30px Chango'); await document.fonts.load('16px Righteous');
+  const c = cctx, top = ranking()[0];
+  const name = $('champName').value.trim() || top?.name || 'Tu nombre';
+  const g = c.createLinearGradient(0, 0, 428, 142);
+  g.addColorStop(0, '#05070d'); g.addColorStop(1, '#1d1030');
+  c.fillStyle = g; c.fillRect(0, 0, 428, 142);
+  c.fillStyle = '#f6b818'; c.fillRect(0, 0, 428, 4); c.fillRect(0, 138, 428, 4);
+  // Trofeo dibujado a mano para no depender de emojis en el canvas
+  c.fillStyle = '#f6b818';
+  c.beginPath(); c.moveTo(22, 30); c.lineTo(78, 30); c.lineTo(72, 70); c.quadraticCurveTo(50, 92, 28, 70); c.closePath(); c.fill();
+  c.lineWidth = 6; c.strokeStyle = '#f6b818';
+  c.beginPath(); c.arc(22, 46, 12, Math.PI * 0.5, Math.PI * 1.5); c.stroke();
+  c.beginPath(); c.arc(78, 46, 12, Math.PI * 1.5, Math.PI * 0.5); c.stroke();
+  c.fillRect(44, 84, 12, 16); c.fillRect(32, 100, 36, 8); c.fillRect(26, 108, 48, 10);
+  c.fillStyle = '#05070d'; c.font = '20px Chango'; c.textAlign = 'center'; c.fillText('1', 50, 64);
+  // Texto
+  c.textAlign = 'left'; c.textBaseline = 'alphabetic';
+  c.fillStyle = '#39ff14'; fitFont(c, 'CAMPEÓN CTF', 'Chango', 310, 34, 18); c.fillText('CAMPEÓN CTF', 104, 44);
+  c.fillStyle = '#ffffff'; fitFont(c, name, 'Righteous', 310, 30, 14); c.fillText(name, 104, 82);
+  c.fillStyle = '#ff4fd8'; fitFont(c, 'CTF por radio · JSConf MX 2026', 'Righteous', 310, 16, 10); c.fillText('CTF por radio · JSConf MX 2026', 104, 108);
+  c.fillStyle = '#8ea3c4'; c.font = '13px Righteous'; c.fillText(top ? `${top.pts} pts · by @cibergabs` : 'by @cibergabs', 104, 128);
+}
+$('champName').addEventListener('input', renderChamp);
+$('champUp').onclick = async () => {
+  if (!confirm(`Se va a reemplazar la página Canvas del gafete conectado ahora: ${label(myNode)}.\n¿Es el gafete del ganador?`)) return;
+  $('champUp').disabled = true;
+  try { await renderChamp(); await uploadCanvas(cctx); ctfLog(`🏆 Gafete de campeón subido a ${label(myNode)}`, 'ok'); }
+  catch (e) { ctfLog('No se pudo subir el gafete de campeón: ' + e.message, 'bad'); }
+  finally { $('champUp').disabled = !port; }
+};
+
+try { $('ctfOn').checked = localStorage.getItem('badge-ctf-on') === '1'; $('boardAuto').checked = localStorage.getItem('badge-ctf-auto') === '1'; } catch {}
+
+loadHistory();
+drawScale();
+renderDesign();
+renderCtf();
+</script>
+</body>
+</html>

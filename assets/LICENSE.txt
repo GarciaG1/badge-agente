@@ -1,0 +1,3 @@
+Arte del kit de JSConf México 2026, licencia CC BY-NC-SA 4.0: https://creativecommons.org/licenses/by-nc-sa/4.0/
+Fuente: https://www.jsconf.mx/en/brandbook
+No incluido bajo la GPL-3.0 del código. Sin uso comercial.

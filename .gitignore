@@ -1,0 +1,10 @@
+# Datos generados en cada ejecución
+alertas_badge.png
+alertas_badge_3x.png
+alertas_cache.json
+alertas_estado.json
+alertas_historial.jsonl
+escaner_ajolotes.csv
+respaldo_axolotl_*.bin
+__pycache__/
+*.pyc

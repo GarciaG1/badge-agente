@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agente de alertas</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chango&family=Righteous&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+  :root {
+    --bg:#05070d; --bg2:#0b1220; --panel:#0e1627; --panel2:#121c31; --line:#1f2a44; --fg:#eaf2ff; --muted:#8ea3c4;
+    --gold:#f6b818; --pink:#ff4fd8; --green:#39ff14; --red:#ff3b3b; --yellow:#f6b818; --level:var(--green);
+    --mono:'JetBrains Mono', ui-monospace, Consolas, monospace;
+  }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif; min-height:100vh;
+    background-image:
+      radial-gradient(900px 500px at 85% -10%, color-mix(in srgb, var(--level) 18%, transparent), transparent 60%),
+      radial-gradient(700px 400px at -10% 100%, rgba(255,79,216,.10), transparent 60%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 2px, transparent 2px 6px);
+    transition: background-image .6s; }
+  main { max-width:1180px; margin:0 auto; padding:18px 20px 40px; }
+  a { color:var(--gold); text-decoration:none; } a:hover { text-decoration:underline; }
+  code, .mono { font-family:var(--mono); }
+  .alert h1, .panel h2, .device h3, .step b, .brand small, .kpi .l, .accion span, .item .p, .breach .p { font-family:Righteous, system-ui, sans-serif; }
+
+  /* Barra superior */
+  .top { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:18px; }
+  .brand { font-family:Chango; font-size:22px; letter-spacing:.5px; color:var(--green); text-shadow:0 0 18px rgba(57,255,20,.35); }
+  .brand small { font-family:Righteous; font-size:13px; color:var(--muted); letter-spacing:0; text-shadow:none; margin-left:8px; }
+  .live { display:inline-flex; align-items:center; gap:7px; font-size:12px; color:var(--muted); font-family:var(--mono); }
+  .live i { width:9px; height:9px; border-radius:50%; background:var(--green); box-shadow:0 0 0 0 rgba(57,255,20,.6); animation:pulse 2s infinite; }
+  .live.off i { background:var(--muted); animation:none; box-shadow:none; }
+  @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(57,255,20,.6)} 70%{box-shadow:0 0 0 10px rgba(57,255,20,0)} 100%{box-shadow:0 0 0 0 rgba(57,255,20,0)} }
+  .spacer { flex:1; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; align-items:center; font-size:12px; color:var(--muted); }
+  .chip { background:var(--panel2); border:1px solid var(--line); border-radius:999px; padding:2px 10px; color:var(--pink); font-family:var(--mono); font-size:12px; }
+
+  /* Hero */
+  .hero { display:grid; grid-template-columns: 1.35fr 1fr; gap:18px; margin-bottom:18px; }
+  @media (max-width:900px) { .hero { grid-template-columns:1fr; } }
+  .alert { position:relative; border-radius:20px; padding:26px 28px; background:linear-gradient(160deg, var(--panel), var(--bg2));
+    border:1px solid var(--line); box-shadow:0 0 0 1px color-mix(in srgb, var(--level) 35%, transparent), 0 30px 60px -30px color-mix(in srgb, var(--level) 60%, transparent); overflow:hidden; }
+  .alert::before { content:''; position:absolute; inset:0 0 auto 0; height:6px; background:var(--level); }
+  .lvl { display:inline-flex; align-items:center; gap:10px; font-family:var(--mono); font-weight:700; font-size:13px; letter-spacing:3px; color:var(--level); margin-bottom:12px; }
+  .lvl i { width:14px; height:14px; border-radius:50%; background:var(--level); box-shadow:0 0 16px var(--level); animation:glow 1.6s ease-in-out infinite alternate; }
+  @keyframes glow { from{opacity:.55} to{opacity:1} }
+  .alert h1 { font-family:Righteous; font-size:clamp(26px, 3.6vw, 40px); line-height:1.1; margin:0 0 16px; }
+  .accion { display:flex; gap:12px; align-items:flex-start; background:rgba(246,184,24,.08); border:1px solid rgba(246,184,24,.35); border-radius:12px; padding:12px 14px; font-size:18px; }
+  .accion b { color:var(--gold); font-family:Chango; font-weight:400; font-size:20px; line-height:1; margin-top:2px; }
+  .brief { margin:18px 0 0; padding:0; list-style:none; display:grid; gap:7px; }
+  .brief li { display:flex; gap:10px; color:var(--muted); font-size:14px; }
+  .brief li::before { content:'▸'; color:var(--green); }
+  .alert .meta { display:flex; gap:16px; flex-wrap:wrap; margin-top:18px; font-family:var(--mono); font-size:12px; color:var(--muted); }
+  .alert .meta b { color:var(--fg); font-weight:500; }
+  .newpill { color:var(--red); font-weight:700; }
+
+  .device { background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:18px; display:flex; flex-direction:column; gap:12px; }
+  .device h3 { margin:0; font-size:14px; color:var(--muted); font-weight:400; display:flex; justify-content:space-between; }
+  .frame { background:#000; border-radius:14px; padding:12px; border:3px solid #223252; box-shadow: inset 0 0 0 1px #0a0f1c, 0 10px 30px rgba(0,0,0,.5); }
+  .frame img { width:100%; display:block; image-rendering:pixelated; border-radius:4px; }
+  .device .foot { font-size:12px; color:var(--muted); font-family:var(--mono); display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px; }
+
+  /* KPIs */
+  .kpis { display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; margin-bottom:18px; }
+  @media (max-width:900px) { .kpis { grid-template-columns:repeat(2, 1fr); } }
+  .kpi { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px 16px; }
+  .kpi .n { font-family:Chango; font-size:34px; line-height:1; color:var(--fg); }
+  .kpi .n.red { color:var(--red); } .kpi .n.gold { color:var(--gold); } .kpi .n.pink { color:var(--pink); } .kpi .n.green { color:var(--green); }
+  .kpi .l { color:var(--muted); font-size:12px; margin-top:6px; }
+  .kpi .s { color:var(--muted); font-size:11px; font-family:var(--mono); margin-top:2px; }
+
+  /* Pipeline */
+  .pipe { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:16px 18px; margin-bottom:18px; display:grid; grid-template-columns:1fr 40px 1fr 40px 1fr; gap:10px; align-items:center; }
+  @media (max-width:900px) { .pipe { grid-template-columns:1fr; } .pipe .arr { transform:rotate(90deg); justify-self:center; } }
+  .step { display:flex; gap:12px; align-items:center; }
+  .step svg { width:38px; height:38px; flex:none; }
+  .step b { display:block; color:var(--gold); font-size:14px; }
+  .step span { color:var(--muted); font-size:12px; }
+  .arr { height:2px; background:repeating-linear-gradient(90deg, var(--green) 0 8px, transparent 8px 14px); background-size:28px 2px; animation:flow 1s linear infinite; opacity:.7; }
+  @keyframes flow { to { background-position:28px 0; } }
+
+  /* Columnas */
+  .cols { display:grid; grid-template-columns:1.2fr 1fr 1fr; gap:14px; margin-bottom:18px; }
+  @media (max-width:900px) { .cols { grid-template-columns:1fr; } }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:16px; min-width:0; }
+  .panel h2 { margin:0 0 12px; font-size:15px; display:flex; align-items:baseline; gap:8px; }
+  .panel h2 small { color:var(--muted); font-size:12px; font-weight:400; }
+  .src { margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:6px; padding:1px 6px; }
+  .item { padding:10px 0; border-top:1px solid var(--line); }
+  .item:first-of-type { border-top:0; padding-top:0; }
+  .item .h { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .item .h code { font-size:13px; font-weight:700; }
+  .item .p { font-weight:400; margin-top:2px; }
+  .item .d { color:var(--muted); font-size:13px; margin-top:4px; line-height:1.45; }
+  .tag { font-family:var(--mono); font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; letter-spacing:.5px; }
+  .tag.new { background:var(--red); color:#fff; } .tag.watch { background:var(--pink); color:#1a0012; } .tag.ransom { background:#8b2cff; color:#fff; }
+  .tag.due { background:var(--panel2); color:var(--gold); border:1px solid rgba(246,184,24,.4); }
+  .score { font-family:var(--mono); font-size:12px; font-weight:700; padding:1px 7px; border-radius:6px; background:var(--red); color:#fff; }
+  .score.hi { background:#ff7a1a; }
+  .breach .big { font-family:Chango; font-size:28px; color:var(--pink); line-height:1.1; }
+  .breach .cls { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0; }
+  .breach .cls span { font-size:11px; background:var(--panel2); border:1px solid var(--line); border-radius:6px; padding:2px 7px; color:var(--muted); }
+  .empty { color:var(--muted); text-align:center; padding:18px; font-size:13px; }
+
+  /* Historial */
+  .dist { display:flex; height:8px; border-radius:4px; overflow:hidden; margin:0 0 14px; background:var(--panel2); }
+  .dist i { display:block; height:100%; }
+  .tl { list-style:none; margin:0; padding:0; position:relative; }
+  .tl::before { content:''; position:absolute; left:7px; top:6px; bottom:6px; width:2px; background:var(--line); }
+  .tl li { position:relative; padding:4px 0 10px 28px; display:grid; grid-template-columns:auto 1fr; gap:12px; align-items:baseline; font-size:13px; }
+  .tl li::before { content:''; position:absolute; left:3px; top:9px; width:10px; height:10px; border-radius:50%; background:var(--c); box-shadow:0 0 10px var(--c); }
+  .tl time { font-family:var(--mono); color:var(--muted); font-size:12px; white-space:nowrap; }
+  .tl .t { color:var(--fg); }
+  .tl .a { color:var(--muted); font-size:12px; display:block; }
+  footer { color:var(--muted); font-size:12px; text-align:center; margin-top:24px; font-family:var(--mono); }
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div class="brand">AGENTE DE ALERTAS<small>badge JSConf MX 2026 · @cibergabs</small></div>
+    <span class="spacer"></span>
+    <div class="chips" id="chips"></div>
+    <span class="live" id="live"><i></i><span id="liveTxt">conectando…</span></span>
+  </div>
+
+  <section class="hero">
+    <div class="alert">
+      <div class="lvl"><i></i><span id="lvl">—</span></div>
+      <h1 id="titular">Esperando la primera actualización…</h1>
+      <div class="accion"><b>→</b><span id="accion">Arranca alertas_badge.py para ver el aviso.</span></div>
+      <ul class="brief" id="resumen"></ul>
+      <div class="meta">
+        <span>actualizado <b id="upd">—</b></span>
+        <span>redactado por <b id="agente">—</b></span>
+        <span id="novedades"></span>
+      </div>
+    </div>
+    <div class="device">
+      <h3><span>Lo que muestra el badge</span><span class="mono">Canvas · 428×142</span></h3>
+      <div class="frame"><img id="shot" alt="Pantalla del badge"></div>
+      <div class="foot"><span>se sube por USB cada 30 min</span><span id="shotTime"></span></div>
+    </div>
+  </section>
+
+  <section class="kpis">
+    <div class="kpi"><div class="n red" id="kKev">—</div><div class="l">explotadas activamente esta semana</div><div class="s">CISA KEV</div></div>
+    <div class="kpi"><div class="n gold" id="kCrit">—</div><div class="l">CVE críticos en 24 h</div><div class="s" id="kCritS">CVSS ≥ 9.0 · NVD</div></div>
+    <div class="kpi"><div class="n" id="kNew">—</div><div class="l">CVE publicados en 24 h</div><div class="s">NVD</div></div>
+    <div class="kpi"><div class="n pink" id="kBreach">—</div><div class="l">cuentas en la última filtración</div><div class="s" id="kBreachS">Have I Been Pwned</div></div>
+  </section>
+
+  <section class="pipe">
+    <div class="step">
+      <svg viewBox="0 0 48 48" fill="none" stroke="#8ea3c4" stroke-width="2.2"><circle cx="24" cy="24" r="18"/><path d="M6 24h36M24 6c6 6 6 30 0 36M24 6c-6 6-6 30 0 36M9 14h30M9 34h30"/></svg>
+      <div><b>1 · Fuentes públicas</b><span>CISA KEV · NVD · Have I Been Pwned, sin API keys</span></div>
+    </div>
+    <div class="arr"></div>
+    <div class="step">
+      <svg viewBox="0 0 48 48" fill="none" stroke="#39ff14" stroke-width="2.2"><rect x="8" y="12" width="32" height="24" rx="4"/><circle cx="18" cy="24" r="3"/><circle cx="30" cy="24" r="3"/><path d="M24 6v6M16 36v4M32 36v4"/></svg>
+      <div><b>2 · Agente local</b><span>Reglas fijan nivel y cifras · <span id="modelo">Ollama</span> redacta el aviso en español</span></div>
+    </div>
+    <div class="arr"></div>
+    <div class="step">
+      <svg viewBox="0 0 48 48" fill="none" stroke="#f6b818" stroke-width="2.2"><rect x="6" y="14" width="36" height="20" rx="3"/><path d="M12 20h24M12 26h14M24 34v8M18 42h12"/></svg>
+      <div><b>3 · Badge por USB</b><span>Imagen 428×142 a la página Canvas, pantalla apagada mientras se escribe</span></div>
+    </div>
+  </section>
+
+  <section class="cols">
+    <div class="panel">
+      <h2>Explotadas activamente <small id="kevWeek"></small><span class="src">CISA KEV</span></h2>
+      <div id="kev"></div>
+    </div>
+    <div class="panel">
+      <h2>Críticos nuevos <small id="nvdCount"></small><span class="src">NVD</span></h2>
+      <div id="nvd"></div>
+    </div>
+    <div class="panel breach">
+      <h2>Última filtración <span class="src">HIBP</span></h2>
+      <div id="breach"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Historial de avisos <small id="histN"></small></h2>
+    <div class="dist" id="dist"></div>
+    <ul class="tl" id="hist"><li class="empty">Sin historial todavía</li></ul>
+  </section>
+
+  <footer>Fuentes: CISA KEV · NVD · Have I Been Pwned &nbsp;·&nbsp; modelo local vía Ollama &nbsp;·&nbsp; hecho con un gafete de JSConf MX 2026</footer>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const COLORS = { ROJO: '#ff3b3b', AMARILLO: '#f6b818', VERDE: '#39ff14' };
+const LABEL = { ROJO: 'ROJO · ACTÚA HOY', AMARILLO: 'AMARILLO · REVISA', VERDE: 'VERDE · SIN URGENCIAS' };
+const nvdLink = (id) => `<a href="https://nvd.nist.gov/vuln/detail/${esc(id)}" target="_blank" rel="noopener"><code>${esc(id)}</code></a>`;
+const fmtTime = (iso) => iso ? new Date(iso).toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
+const ago = (iso) => { const m = Math.round((Date.now() - new Date(iso)) / 60000); return m < 1 ? 'hace un momento' : m < 60 ? `hace ${m} min` : `hace ${Math.floor(m / 60)} h ${m % 60} min`; };
+// Fecha local al final del día: "2026-11-01" a medianoche UTC ya es "ayer" en México por la tarde
+const daysTo = (d) => Math.ceil((new Date(d + 'T23:59:59') - Date.now()) / 86400000);
+const dueLabel = (n) => n < 0 ? 'plazo CISA vencido' : n === 0 ? 'CISA: vence hoy' : n === 1 ? 'CISA: vence mañana' : `CISA: vence en ${n} d`;
+const num = (n) => Number(n ?? 0).toLocaleString('es-MX');
+
+async function load() {
+  let s;
+  try { s = await (await fetch('alertas_estado.json?ts=' + Date.now())).json(); }
+  catch { $('live').className = 'live off'; $('liveTxt').textContent = 'sin datos: arranca alertas_badge.py'; return; }
+  const b = s.brief, isNew = (id) => s.new_ids.includes(id);
+  const watched = (t) => (s.watch || []).some((w) => (t || '').toLowerCase().includes(w));
+  const stale = Date.now() - new Date(s.updated) > 45 * 60000;
+
+  document.documentElement.style.setProperty('--level', COLORS[b.nivel]);
+  $('lvl').textContent = LABEL[b.nivel];
+  $('titular').textContent = b.titular;
+  $('accion').textContent = b.accion;
+  $('resumen').innerHTML = (b.resumen || []).map((r) => `<li>${esc(r)}</li>`).join('');
+  $('upd').textContent = `${fmtTime(s.updated)} (${ago(s.updated)})`;
+  $('agente').textContent = b.agente === 'reglas' ? 'reglas (Ollama no respondió)' : b.agente;
+  $('modelo').textContent = b.agente && b.agente !== 'reglas' ? b.agente : 'Ollama';
+  $('novedades').innerHTML = s.new_ids.length ? `<span class="newpill">▲ ${s.new_ids.length} ${s.new_ids.length === 1 ? 'novedad' : 'novedades'} desde la última revisión</span>` : 'sin novedades desde la última revisión';
+  $('live').className = 'live' + (stale ? ' off' : '');
+  $('liveTxt').textContent = stale ? 'el agente lleva un rato sin actualizar' : 'agente activo · esta vista se refresca sola';
+  $('chips').innerHTML = (s.watch || []).length ? 'vigilando ' + s.watch.map((w) => `<span class="chip">${esc(w)}</span>`).join('') : '';
+  $('shot').src = 'alertas_badge.png?ts=' + Date.now();
+  $('shotTime').textContent = 'generada ' + ago(s.updated);
+
+  const kev = s.kev || {}, nvd = s.nvd || {}, br = s.breach;
+  $('kKev').textContent = '+' + (kev.week ?? '—');
+  $('kCrit').textContent = nvd.critical ?? '—';
+  $('kNew').textContent = nvd.total ?? '—';
+  $('kBreach').textContent = br ? num(br.count) : '—';
+  $('kBreachS').textContent = br ? `${br.name} · Have I Been Pwned` : 'Have I Been Pwned';
+
+  $('kevWeek').textContent = `+${kev.week ?? '?'} esta semana`;
+  $('kev').innerHTML = (kev.latest || []).map((v) => {
+    const due = v.due ? daysTo(v.due) : null;
+    return `<div class="item"><div class="h">${nvdLink(v.id)}${isNew(v.id) ? '<span class="tag new">NUEVO</span>' : ''}${watched(v.what) ? '<span class="tag watch">VIGILADO</span>' : ''}${v.ransomware === 'Known' ? '<span class="tag ransom">RANSOMWARE</span>' : ''}${due != null ? `<span class="tag due">${dueLabel(due)}</span>` : ''}</div>
+      <div class="p"><b>${esc(v.what)}</b> · agregada ${esc(v.date)}</div>
+      <div class="d">${esc(v.desc)}${v.url ? ` <a href="${esc(v.url)}" target="_blank" rel="noopener">aviso del fabricante ↗</a>` : ''}</div></div>`;
+  }).join('') || '<div class="empty">Sin datos</div>';
+
+  $('nvdCount').textContent = `${nvd.critical ?? '?'} de ${nvd.total ?? '?'} publicados`;
+  $('nvd').innerHTML = (nvd.items || []).map((v) => `<div class="item"><div class="h">${nvdLink(v.id)}${v.score ? `<span class="score${v.score < 9.5 ? ' hi' : ''}">${esc(v.score)}</span>` : ''}${isNew(v.id) ? '<span class="tag new">NUEVO</span>' : ''}</div><div class="d">${esc(v.desc)}</div></div>`).join('') || '<div class="empty">Sin críticos en 24 h</div>';
+
+  $('breach').innerHTML = br ? `<div class="big">${esc(br.title || br.name)}</div>
+    <div class="p">${num(br.count)} cuentas${isNew('breach:' + br.name) ? ' <span class="tag new">NUEVA</span>' : ''}</div>
+    <div class="d">Ocurrió el ${esc(br.date)} · agregada al catálogo el ${esc(br.added)}</div>
+    <div class="cls">${(br.classes || []).map((c) => `<span>${esc(c)}</span>`).join('')}</div>
+    <div class="d">${esc(br.desc)}</div>
+    <div class="d" style="margin-top:8px"><a href="https://haveibeenpwned.com/PwnedWebsites#${esc(br.name)}" target="_blank" rel="noopener">ver en HIBP ↗</a> &nbsp;·&nbsp; <a href="https://haveibeenpwned.com/" target="_blank" rel="noopener">¿mi correo está ahí? ↗</a></div>` : '<div class="empty">Sin datos</div>';
+
+  try {
+    const txt = await (await fetch('alertas_historial.jsonl?ts=' + Date.now())).text();
+    const rows = txt.trim().split('\n').filter(Boolean).map((l) => JSON.parse(l));
+    const count = { ROJO: 0, AMARILLO: 0, VERDE: 0 };
+    rows.forEach((r) => { count[r.nivel] = (count[r.nivel] || 0) + 1; });
+    $('dist').innerHTML = Object.entries(count).filter(([, n]) => n).map(([k, n]) => `<i style="width:${n / rows.length * 100}%;background:${COLORS[k]}" title="${k}: ${n}"></i>`).join('');
+    $('histN').textContent = rows.length ? `${rows.length} avisos · ${count.ROJO} rojos · ${count.AMARILLO} amarillos · ${count.VERDE} verdes` : '';
+    $('hist').innerHTML = rows.reverse().slice(0, 30).map((r) => `<li style="--c:${COLORS[r.nivel]}"><time>${esc(fmtTime(r.t))}</time><span><span class="t">${esc(r.titular)}</span>${r.nuevas ? ` <span class="tag new">▲ ${r.nuevas}</span>` : ''}<span class="a">→ ${esc(r.accion)} · ${esc(r.agente)}</span></span></li>`).join('') || '<li class="empty">Sin historial todavía</li>';
+  } catch {}
+}
+load();
+setInterval(load, 30000);
+</script>
+</body>
+</html>
