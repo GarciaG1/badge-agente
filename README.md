@@ -71,7 +71,6 @@ Solo un programa puede usar el puerto a la vez: detén el agente antes de conect
 
 ## Limitaciones
 
-- El aviso viaja por USB, no por LoRa.
 - El agente vigila listas públicas. No escanea tus sistemas ni sabe qué tienes instalado, salvo por las palabras de `--watch`.
 - Si una fuente falla, usa sus últimos datos guardados.
 - El límite público del NVD es de 5 peticiones cada 30 s.
